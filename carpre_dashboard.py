@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 import io
+import requests
+from io import StringIO
 
 # Load the dataset with caching
 @st.cache_data
@@ -13,9 +15,15 @@ def load_data():
         # Try loading from local path (for local use)
         data = pd.read_csv("C:/Users/chris/OneDrive/Desktop/GCU/a DSC 580/car prediction/car.csv", encoding='ISO-8859-1')
     except FileNotFoundError:
-        # If file is not found, load from GitHub (for Streamlit Cloud)
-        url = "https://raw.githubusercontent.com/your-username/streamlit-car-prediction/main/car.csv"
-        data = pd.read_csv(url, encoding='ISO-8859-1')
+        # If file is not found, download from GitHub (for Streamlit Cloud)
+        url = "https://raw.githubusercontent.com/Smphekni/streamlit-car-prediction/main/car.csv"
+        response = requests.get(url)
+        if response.status_code == 200:
+            csv_data = StringIO(response.text)
+            data = pd.read_csv(csv_data, encoding='ISO-8859-1')
+        else:
+            st.error(f"⚠️ Error: Unable to fetch `car.csv`. HTTP Status Code: {response.status_code}")
+            return None  # Prevents further errors
     
     data.dropna(inplace=True)  # Handle missing values
     data.columns = data.columns.str.strip().str.lower().str.replace(" ", "_")
@@ -36,8 +44,8 @@ This tool predicts car purchase amounts based on financial and demographic input
 # Load data
 data = load_data()
 
-# Select relevant features and target
-if 'car_purchase_amount' in data.columns:
+if data is not None and 'car_purchase_amount' in data.columns:
+    # Select relevant features and target
     features = data[['age', 'annual_salary', 'credit_card_debt', 'net_worth']]
     target = data['car_purchase_amount']
 
@@ -104,4 +112,4 @@ if 'car_purchase_amount' in data.columns:
 
     st.info("This app supports multiple users and runs in a cloud environment.")
 else:
-    st.error("The dataset does not contain the required columns. Please check the dataset.")
+    st.error("The dataset does not contain the required columns or could not be loaded. Please check the dataset.")
